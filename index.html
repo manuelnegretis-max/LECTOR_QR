@@ -2,14 +2,14 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Configuración para que parezca APK (PWA) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Configuración PWA -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#4f46e5">
     
-    <title>QR Scanner Pro</title>
+    <title>QR Scanner Pro + Zoom</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -18,21 +18,30 @@
     <style>
         #reader {
             width: 100%;
-            border-radius: 1rem;
+            border-radius: 1.5rem;
             overflow: hidden;
             border: none !important;
         }
-        #reader__scan_region {
-            background: #f3f4f6;
+        #reader__scan_region video {
+            object-fit: cover !important;
         }
         .scanner-container {
             max-width: 500px;
             margin: 0 auto;
+            position: relative;
         }
-        /* Estilo para que no se vea como web al instalar */
-        body {
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
+        input[type=range]::-webkit-slider-runnable-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 8px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            background: #4f46e5;
+            margin-top: -6px;
+            border-radius: 50%;
         }
     </style>
 </head>
@@ -42,14 +51,23 @@
         <!-- Encabezado -->
         <header class="text-center my-6">
             <h1 class="text-3xl font-extrabold text-indigo-600 tracking-tight">QR Scanner Pro</h1>
-            <p class="text-sm text-slate-500 font-medium">Escanea y exporta a Excel</p>
+            <p class="text-sm text-slate-500 font-medium">Versión Alta Precisión</p>
         </header>
 
         <!-- Sección del Escáner -->
         <div class="bg-white p-4 rounded-3xl shadow-xl mb-6 scanner-container border border-slate-100">
             <div id="reader"></div>
-            <div id="result-status" class="mt-4 text-center text-sm font-semibold text-slate-500 bg-slate-100 py-2 rounded-lg">
-                Listo para escanear
+            
+            <!-- Controles de Cámara (Zoom y Flash) -->
+            <div id="camera-controls" class="hidden mt-4 space-y-4">
+                <div class="flex items-center gap-3">
+                    <span class="text-xs font-bold text-slate-400">ZOOM</span>
+                    <input id="zoom-range" type="range" step="0.1" min="1" max="5" value="1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+
+            <div id="result-status" class="mt-4 text-center text-xs font-bold text-slate-400 bg-slate-100 py-2 rounded-xl uppercase tracking-widest">
+                Cámara lista
             </div>
         </div>
 
@@ -58,15 +76,14 @@
             <button id="start-btn" class="bg-indigo-600 active:scale-95 text-white font-bold py-4 px-4 rounded-2xl transition-all shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <span id="btn-text">Encender</span>
+                <span id="btn-text">Iniciar</span>
             </button>
             <button id="export-btn" class="bg-emerald-600 active:scale-95 text-white font-bold py-4 px-4 rounded-2xl transition-all shadow-lg shadow-emerald-200 flex flex-col items-center justify-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span>Descargar</span>
+                <span>Excel</span>
             </button>
         </div>
 
@@ -74,9 +91,9 @@
         <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
             <div class="p-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                 <h2 class="font-bold text-slate-700">Registros</h2>
-                <button id="clear-btn" class="bg-red-50 text-red-500 px-3 py-1 rounded-full text-xs font-bold hover:bg-red-100 transition-colors">Limpiar</button>
+                <button id="clear-btn" class="bg-red-50 text-red-500 px-3 py-1 rounded-full text-xs font-bold">Limpiar</button>
             </div>
-            <div class="max-h-80 overflow-y-auto">
+            <div class="max-h-64 overflow-y-auto">
                 <table class="w-full text-left text-sm" id="scans-table">
                     <thead class="bg-slate-50 text-slate-400 uppercase text-[10px] sticky top-0">
                         <tr>
@@ -84,121 +101,153 @@
                             <th class="px-4 py-3">Dato</th>
                         </tr>
                     </thead>
-                    <tbody id="scans-list" class="divide-y divide-slate-50">
-                        <!-- Datos -->
-                    </tbody>
+                    <tbody id="scans-list" class="divide-y divide-slate-50"></tbody>
                 </table>
                 <div id="empty-state" class="py-10 text-center text-slate-400 text-xs italic">
-                    No hay escaneos todavía
+                    Sin escaneos
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Sonido de escaneo -->
     <audio id="beep" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"></audio>
 
     <script>
         let html5QrCode;
         let scans = [];
-        const scansList = document.getElementById('scans-list');
-        const emptyState = document.getElementById('empty-state');
         const startBtn = document.getElementById('start-btn');
         const btnText = document.getElementById('btn-text');
-        const exportBtn = document.getElementById('export-btn');
-        const clearBtn = document.getElementById('clear-btn');
+        const zoomRange = document.getElementById('zoom-range');
+        const cameraControls = document.getElementById('camera-controls');
         const statusText = document.getElementById('result-status');
-        const beep = document.getElementById('beep');
 
         function initScanner() {
             html5QrCode = new Html5Qrcode("reader");
-            const config = { fps: 15, qrbox: { width: 220, height: 220 } };
+            
+            // CONFIGURACIÓN DE ALTA CALIDAD
+            const config = { 
+                fps: 20, // Más frames para capturar códigos rápidos
+                qrbox: (viewfinderWidth, viewfinderHeight) => {
+                    // Cuadro de escaneo dinámico (60% del ancho)
+                    const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+                    const qrboxSize = Math.floor(minEdgeSize * 0.6);
+                    return { width: qrboxSize, height: qrboxSize };
+                },
+                aspectRatio: 1.0,
+                // Forzar resolución más alta si el dispositivo lo permite
+                videoConstraints: {
+                    facingMode: "environment",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
 
             startBtn.addEventListener('click', () => {
-                if (btnText.innerText === "Encender") {
+                if (btnText.innerText === "Iniciar") {
                     html5QrCode.start(
                         { facingMode: "environment" }, 
                         config, 
                         onScanSuccess
                     ).then(() => {
-                        btnText.innerText = "Apagar";
+                        btnText.innerText = "Parar";
                         startBtn.classList.replace('bg-indigo-600', 'bg-slate-700');
                         statusText.innerText = "Escaneando...";
+                        
+                        // Intentar habilitar controles de zoom
+                        setupAdvancedControls();
                     }).catch(err => {
-                        console.error(err);
-                        alert("Asegúrate de dar permisos de cámara.");
+                        alert("Error de cámara: " + err);
                     });
                 } else {
                     html5QrCode.stop().then(() => {
-                        btnText.innerText = "Encender";
+                        btnText.innerText = "Iniciar";
                         startBtn.classList.replace('bg-slate-700', 'bg-indigo-600');
                         statusText.innerText = "Cámara apagada";
+                        cameraControls.classList.add('hidden');
                     });
                 }
             });
         }
 
+        async function setupAdvancedControls() {
+            try {
+                const capabilities = html5QrCode.getRunningTrackCapabilities();
+                const settings = html5QrCode.getRunningTrackSettings();
+                
+                // Configurar Zoom si está disponible
+                if (capabilities.zoom) {
+                    cameraControls.classList.remove('hidden');
+                    zoomRange.min = capabilities.zoom.min;
+                    zoomRange.max = capabilities.zoom.max;
+                    zoomRange.step = capabilities.zoom.step;
+                    zoomRange.value = settings.zoom;
+                    
+                    zoomRange.oninput = async (e) => {
+                        try {
+                            await html5QrCode.applyVideoConstraints({
+                                advanced: [{ zoom: e.target.value }]
+                            });
+                        } catch (err) {
+                            console.error("Error aplicando zoom", err);
+                        }
+                    };
+                }
+            } catch (e) {
+                console.log("El dispositivo no soporta controles avanzados de cámara.");
+            }
+        }
+
         function onScanSuccess(decodedText) {
-            // Evitar duplicados consecutivos
             if (scans.length > 0 && scans[0].content === decodedText) return;
 
-            beep.play();
-            if (window.navigator.vibrate) window.navigator.vibrate(100);
+            document.getElementById('beep').play();
+            if (window.navigator.vibrate) window.navigator.vibrate(80);
 
             const now = new Date();
-            const newScan = { 
+            scans.unshift({ 
                 fecha: now.toLocaleDateString(),
                 hora: now.toLocaleTimeString(), 
                 content: decodedText 
-            };
+            });
             
-            scans.unshift(newScan);
             renderTable();
-            
-            statusText.innerText = "¡Copiado!";
-            statusText.classList.replace('text-slate-500', 'text-emerald-600');
+            statusText.innerText = "¡Dato capturado!";
+            statusText.classList.replace('text-slate-400', 'text-emerald-600');
             setTimeout(() => {
-                statusText.classList.replace('text-emerald-600', 'text-slate-500');
+                statusText.classList.replace('text-emerald-600', 'text-slate-400');
                 statusText.innerText = "Escaneando...";
             }, 1000);
         }
 
         function renderTable() {
-            if (scans.length > 0) {
-                emptyState.classList.add('hidden');
-            } else {
-                emptyState.classList.remove('hidden');
-            }
-
+            const scansList = document.getElementById('scans-list');
+            const emptyState = document.getElementById('empty-state');
+            
+            if (scans.length > 0) emptyState.classList.add('hidden');
+            
             scansList.innerHTML = scans.map(scan => `
-                <tr class="animate-pulse bg-emerald-50/30">
-                    <td class="px-4 py-4 text-slate-400 font-mono text-xs">${scan.hora}</td>
-                    <td class="px-4 py-4 font-bold text-slate-700 break-all">${scan.content}</td>
+                <tr class="bg-white">
+                    <td class="px-4 py-4 text-slate-400 font-mono text-[10px]">${scan.hora}</td>
+                    <td class="px-4 py-4 font-bold text-slate-700 break-all text-xs">${scan.content}</td>
                 </tr>
             `).join('');
-
-            // Quitar efecto de pulso después de un momento
-            setTimeout(() => {
-                const rows = scansList.querySelectorAll('tr');
-                rows.forEach(r => r.classList.remove('animate-pulse', 'bg-emerald-50/30'));
-            }, 500);
         }
 
-        exportBtn.addEventListener('click', () => {
-            if (scans.length === 0) return alert("Escanea algo primero.");
-
+        document.getElementById('export-btn').onclick = () => {
+            if (scans.length === 0) return alert("Nada que exportar.");
             const ws = XLSX.utils.json_to_sheet(scans);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+            XLSX.utils.book_append_sheet(wb, ws, "Escaneos");
             XLSX.writeFile(wb, `Reporte_QR_${Date.now()}.xlsx`);
-        });
+        };
 
-        clearBtn.addEventListener('click', () => {
-            if (confirm("¿Borrar todos los registros?")) {
+        document.getElementById('clear-btn').onclick = () => {
+            if (confirm("¿Limpiar lista?")) {
                 scans = [];
                 renderTable();
+                document.getElementById('empty-state').classList.remove('hidden');
             }
-        });
+        };
 
         window.onload = initScanner;
     </script>
