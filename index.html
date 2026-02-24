@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Configuración para que parezca APK (PWA) -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#4f46e5">
+    
+    <title>QR Scanner Pro</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    
+    <style>
+        #reader {
+            width: 100%;
+            border-radius: 1rem;
+            overflow: hidden;
+            border: none !important;
+        }
+        #reader__scan_region {
+            background: #f3f4f6;
+        }
+        .scanner-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        /* Estilo para que no se vea como web al instalar */
+        body {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans pb-10">
+
+    <div class="max-w-md mx-auto p-4">
+        <!-- Encabezado -->
+        <header class="text-center my-6">
+            <h1 class="text-3xl font-extrabold text-indigo-600 tracking-tight">QR Scanner Pro</h1>
+            <p class="text-sm text-slate-500 font-medium">Escanea y exporta a Excel</p>
+        </header>
+
+        <!-- Sección del Escáner -->
+        <div class="bg-white p-4 rounded-3xl shadow-xl mb-6 scanner-container border border-slate-100">
+            <div id="reader"></div>
+            <div id="result-status" class="mt-4 text-center text-sm font-semibold text-slate-500 bg-slate-100 py-2 rounded-lg">
+                Listo para escanear
+            </div>
+        </div>
+
+        <!-- Acciones Principales -->
+        <div class="grid grid-cols-2 gap-4 mb-8">
+            <button id="start-btn" class="bg-indigo-600 active:scale-95 text-white font-bold py-4 px-4 rounded-2xl transition-all shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span id="btn-text">Encender</span>
+            </button>
+            <button id="export-btn" class="bg-emerald-600 active:scale-95 text-white font-bold py-4 px-4 rounded-2xl transition-all shadow-lg shadow-emerald-200 flex flex-col items-center justify-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Descargar</span>
+            </button>
+        </div>
+
+        <!-- Tabla de Resultados -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="p-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                <h2 class="font-bold text-slate-700">Registros</h2>
+                <button id="clear-btn" class="bg-red-50 text-red-500 px-3 py-1 rounded-full text-xs font-bold hover:bg-red-100 transition-colors">Limpiar</button>
+            </div>
+            <div class="max-h-80 overflow-y-auto">
+                <table class="w-full text-left text-sm" id="scans-table">
+                    <thead class="bg-slate-50 text-slate-400 uppercase text-[10px] sticky top-0">
+                        <tr>
+                            <th class="px-4 py-3">Hora</th>
+                            <th class="px-4 py-3">Dato</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scans-list" class="divide-y divide-slate-50">
+                        <!-- Datos -->
+                    </tbody>
+                </table>
+                <div id="empty-state" class="py-10 text-center text-slate-400 text-xs italic">
+                    No hay escaneos todavía
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sonido de escaneo -->
+    <audio id="beep" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"></audio>
+
+    <script>
+        let html5QrCode;
+        let scans = [];
+        const scansList = document.getElementById('scans-list');
+        const emptyState = document.getElementById('empty-state');
+        const startBtn = document.getElementById('start-btn');
+        const btnText = document.getElementById('btn-text');
+        const exportBtn = document.getElementById('export-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const statusText = document.getElementById('result-status');
+        const beep = document.getElementById('beep');
+
+        function initScanner() {
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 15, qrbox: { width: 220, height: 220 } };
+
+            startBtn.addEventListener('click', () => {
+                if (btnText.innerText === "Encender") {
+                    html5QrCode.start(
+                        { facingMode: "environment" }, 
+                        config, 
+                        onScanSuccess
+                    ).then(() => {
+                        btnText.innerText = "Apagar";
+                        startBtn.classList.replace('bg-indigo-600', 'bg-slate-700');
+                        statusText.innerText = "Escaneando...";
+                    }).catch(err => {
+                        console.error(err);
+                        alert("Asegúrate de dar permisos de cámara.");
+                    });
+                } else {
+                    html5QrCode.stop().then(() => {
+                        btnText.innerText = "Encender";
+                        startBtn.classList.replace('bg-slate-700', 'bg-indigo-600');
+                        statusText.innerText = "Cámara apagada";
+                    });
+                }
+            });
+        }
+
+        function onScanSuccess(decodedText) {
+            // Evitar duplicados consecutivos
+            if (scans.length > 0 && scans[0].content === decodedText) return;
+
+            beep.play();
+            if (window.navigator.vibrate) window.navigator.vibrate(100);
+
+            const now = new Date();
+            const newScan = { 
+                fecha: now.toLocaleDateString(),
+                hora: now.toLocaleTimeString(), 
+                content: decodedText 
+            };
+            
+            scans.unshift(newScan);
+            renderTable();
+            
+            statusText.innerText = "¡Copiado!";
+            statusText.classList.replace('text-slate-500', 'text-emerald-600');
+            setTimeout(() => {
+                statusText.classList.replace('text-emerald-600', 'text-slate-500');
+                statusText.innerText = "Escaneando...";
+            }, 1000);
+        }
+
+        function renderTable() {
+            if (scans.length > 0) {
+                emptyState.classList.add('hidden');
+            } else {
+                emptyState.classList.remove('hidden');
+            }
+
+            scansList.innerHTML = scans.map(scan => `
+                <tr class="animate-pulse bg-emerald-50/30">
+                    <td class="px-4 py-4 text-slate-400 font-mono text-xs">${scan.hora}</td>
+                    <td class="px-4 py-4 font-bold text-slate-700 break-all">${scan.content}</td>
+                </tr>
+            `).join('');
+
+            // Quitar efecto de pulso después de un momento
+            setTimeout(() => {
+                const rows = scansList.querySelectorAll('tr');
+                rows.forEach(r => r.classList.remove('animate-pulse', 'bg-emerald-50/30'));
+            }, 500);
+        }
+
+        exportBtn.addEventListener('click', () => {
+            if (scans.length === 0) return alert("Escanea algo primero.");
+
+            const ws = XLSX.utils.json_to_sheet(scans);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+            XLSX.writeFile(wb, `Reporte_QR_${Date.now()}.xlsx`);
+        });
+
+        clearBtn.addEventListener('click', () => {
+            if (confirm("¿Borrar todos los registros?")) {
+                scans = [];
+                renderTable();
+            }
+        });
+
+        window.onload = initScanner;
+    </script>
+</body>
+</html>
