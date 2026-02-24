@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#4f46e5">
     
-    <title>QR Scanner Pro + Zoom + Flash</title>
+    <title>QR Scanner Pro + Flash Fix</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -43,6 +43,12 @@
             margin-top: -6px;
             border-radius: 50%;
         }
+        /* Animación para el botón de linterna */
+        .torch-active {
+            background-color: #fbbf24 !important;
+            color: white !important;
+            box-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans pb-10">
@@ -61,15 +67,15 @@
             <!-- Controles Avanzados -->
             <div id="camera-controls" class="hidden mt-4 space-y-4">
                 <!-- Zoom Control -->
-                <div id="zoom-container" class="hidden flex items-center gap-3 bg-slate-50 p-2 rounded-xl">
+                <div id="zoom-container" class="hidden flex items-center gap-3 bg-slate-50 p-3 rounded-xl">
                     <span class="text-[10px] font-black text-slate-400">ZOOM</span>
                     <input id="zoom-range" type="range" step="0.1" min="1" max="5" value="1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
                 </div>
                 
-                <!-- Flash Button -->
-                <div id="torch-container" class="hidden flex justify-center">
-                    <button id="torch-btn" class="flex items-center gap-2 bg-amber-100 text-amber-700 px-6 py-2 rounded-full font-bold text-xs transition-all active:scale-95">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <!-- Flash Button Mejorado -->
+                <div id="torch-container" class="flex justify-center hidden">
+                    <button id="torch-btn" class="flex items-center gap-2 bg-slate-100 text-slate-600 px-8 py-3 rounded-full font-bold text-sm transition-all active:scale-95 border border-slate-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                         LINTERNA
@@ -134,6 +140,7 @@
         const torchBtn = document.getElementById('torch-btn');
         const cameraControls = document.getElementById('camera-controls');
         const statusText = document.getElementById('result-status');
+        const torchContainer = document.getElementById('torch-container');
 
         function initScanner() {
             html5QrCode = new Html5Qrcode("reader");
@@ -147,7 +154,7 @@
                 aspectRatio: 1.0,
                 videoConstraints: {
                     facingMode: "environment",
-                    width: { ideal: 1920 }, // Intentar Full HD para máxima nitidez
+                    width: { ideal: 1920 },
                     height: { ideal: 1080 }
                 }
             };
@@ -159,27 +166,37 @@
                         btnText.innerText = "Parar";
                         startBtn.classList.replace('bg-indigo-600', 'bg-slate-700');
                         statusText.innerText = "Escaneando...";
-                        setupAdvancedControls();
+                        cameraControls.classList.remove('hidden');
+                        
+                        // Esperar un momento a que el track de video esté activo para detectar capacidades
+                        setTimeout(setupAdvancedControls, 1000);
                     })
                     .catch(err => alert("Error de cámara: " + err));
                 } else {
-                    html5QrCode.stop().then(() => {
-                        btnText.innerText = "Iniciar";
-                        startBtn.classList.replace('bg-slate-700', 'bg-indigo-600');
-                        statusText.innerText = "Cámara apagada";
-                        cameraControls.classList.add('hidden');
-                        isFlashOn = false;
-                    });
+                    stopCamera();
                 }
+            });
+        }
+
+        function stopCamera() {
+            html5QrCode.stop().then(() => {
+                btnText.innerText = "Iniciar";
+                startBtn.classList.replace('bg-slate-700', 'bg-indigo-600');
+                statusText.innerText = "Cámara apagada";
+                cameraControls.classList.add('hidden');
+                torchContainer.classList.add('hidden');
+                isFlashOn = false;
+                torchBtn.classList.remove('torch-active');
             });
         }
 
         async function setupAdvancedControls() {
             try {
-                const capabilities = html5QrCode.getRunningTrackCapabilities();
-                const settings = html5QrCode.getRunningTrackSettings();
+                // Obtenemos el track de video directamente
+                const videoTrack = html5QrCode.getRunningTrack();
+                const capabilities = videoTrack.getCapabilities();
                 
-                cameraControls.classList.remove('hidden');
+                console.log("Capacidades detectadas:", capabilities);
 
                 // Soporte para ZOOM
                 if (capabilities.zoom) {
@@ -187,30 +204,37 @@
                     zoomRange.min = capabilities.zoom.min;
                     zoomRange.max = capabilities.zoom.max;
                     zoomRange.step = capabilities.zoom.step;
-                    zoomRange.value = settings.zoom;
+                    
                     zoomRange.oninput = (e) => {
-                        html5QrCode.applyVideoConstraints({ advanced: [{ zoom: e.target.value }] });
+                        videoTrack.applyConstraints({ advanced: [{ zoom: e.target.value }] });
                     };
                 }
 
-                // Soporte para LINTERNA (Flash)
+                // Soporte para LINTERNA (Torch)
+                // Verificamos 'torch' en las capacidades del track
                 if (capabilities.torch) {
-                    document.getElementById('torch-container').classList.remove('hidden');
+                    torchContainer.classList.remove('hidden');
                     torchBtn.onclick = async () => {
                         isFlashOn = !isFlashOn;
                         try {
-                            await html5QrCode.applyVideoConstraints({
+                            await videoTrack.applyConstraints({
                                 advanced: [{ torch: isFlashOn }]
                             });
-                            torchBtn.classList.toggle('bg-amber-400', isFlashOn);
-                            torchBtn.classList.toggle('text-white', isFlashOn);
+                            
+                            if (isFlashOn) {
+                                torchBtn.classList.add('torch-active');
+                                torchBtn.innerText = "Luz: ENCENDIDA";
+                            } else {
+                                torchBtn.classList.remove('torch-active');
+                                torchBtn.innerText = "LINTERNA";
+                            }
                         } catch (e) {
-                            console.error("Error con linterna", e);
+                            console.error("No se pudo alternar la linterna:", e);
                         }
                     };
                 }
             } catch (e) {
-                console.log("Controles avanzados no disponibles");
+                console.warn("Controles avanzados no disponibles en este navegador/dispositivo:", e);
             }
         }
 
