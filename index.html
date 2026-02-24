@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#4f46e5">
     
-    <title>QR Scanner Pro + Flash Fix</title>
+    <title>QR Scanner Pro + Manual Controls</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -37,17 +37,20 @@
         }
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            height: 20px;
-            width: 20px;
+            height: 24px;
+            width: 24px;
             background: #4f46e5;
-            margin-top: -6px;
+            margin-top: -8px;
             border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-        /* Animación para el botón de linterna */
+        .control-btn {
+            @apply bg-white border border-slate-200 text-slate-700 font-bold p-3 rounded-xl active:bg-slate-100 transition-all shadow-sm flex items-center justify-center;
+        }
         .torch-active {
             background-color: #fbbf24 !important;
             color: white !important;
-            box-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+            border-color: #f59e0b !important;
         }
     </style>
 </head>
@@ -57,58 +60,66 @@
         <!-- Encabezado -->
         <header class="text-center my-6">
             <h1 class="text-3xl font-extrabold text-indigo-600 tracking-tight">QR Scanner Pro</h1>
-            <p class="text-sm text-slate-500 font-medium">Edición Pro (Flash & Zoom)</p>
+            <p class="text-sm text-slate-500 font-medium">Controles Manuales Forzados</p>
         </header>
 
         <!-- Sección del Escáner -->
         <div class="bg-white p-4 rounded-3xl shadow-xl mb-6 scanner-container border border-slate-100">
             <div id="reader"></div>
             
-            <!-- Controles Avanzados -->
-            <div id="camera-controls" class="hidden mt-4 space-y-4">
-                <!-- Zoom Control -->
-                <div id="zoom-container" class="hidden flex items-center gap-3 bg-slate-50 p-3 rounded-xl">
-                    <span class="text-[10px] font-black text-slate-400">ZOOM</span>
-                    <input id="zoom-range" type="range" step="0.1" min="1" max="5" value="1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+            <!-- Controles Avanzados SIEMPRE VISIBLES al iniciar -->
+            <div id="camera-controls" class="hidden mt-4 space-y-4 animate-in fade-in duration-500">
+                
+                <!-- Zoom Control con Botones -->
+                <div class="bg-slate-50 p-3 rounded-2xl space-y-3">
+                    <div class="flex justify-between items-center px-1">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Zoom Digital</span>
+                        <span id="zoom-value" class="text-xs font-bold text-indigo-600">1.0x</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button id="zoom-out" class="control-btn w-12 h-12 text-xl">−</button>
+                        <input id="zoom-range" type="range" step="0.1" min="1" max="5" value="1" class="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        <button id="zoom-in" class="control-btn w-12 h-12 text-xl">+</button>
+                    </div>
                 </div>
                 
-                <!-- Flash Button Mejorado -->
-                <div id="torch-container" class="flex justify-center hidden">
-                    <button id="torch-btn" class="flex items-center gap-2 bg-slate-100 text-slate-600 px-8 py-3 rounded-full font-bold text-sm transition-all active:scale-95 border border-slate-200">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <!-- Flash Button Forzado -->
+                <div class="flex justify-center">
+                    <button id="torch-btn" class="w-full flex items-center justify-center gap-3 bg-slate-100 text-slate-600 py-4 rounded-2xl font-black text-sm transition-all active:scale-95 border-2 border-dashed border-slate-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
-                        LINTERNA
+                        ACTIVAR LINTERNA
                     </button>
                 </div>
             </div>
 
-            <div id="result-status" class="mt-4 text-center text-xs font-bold text-slate-400 bg-slate-100 py-2 rounded-xl uppercase tracking-widest">
+            <div id="result-status" class="mt-4 text-center text-xs font-bold text-slate-400 bg-slate-50 py-2 rounded-xl uppercase tracking-widest border border-slate-100">
                 Cámara lista
             </div>
         </div>
 
         <!-- Acciones Principales -->
         <div class="grid grid-cols-2 gap-4 mb-8">
-            <button id="start-btn" class="bg-indigo-600 active:scale-95 text-white font-bold py-4 px-4 rounded-2xl transition-all shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-1">
+            <button id="start-btn" class="bg-indigo-600 active:scale-95 text-white font-bold py-5 px-4 rounded-2xl transition-all shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 </svg>
-                <span id="btn-text">Iniciar</span>
+                <span id="btn-text">Encender</span>
             </button>
-            <button id="export-btn" class="bg-emerald-600 active:scale-95 text-white font-bold py-4 px-4 rounded-2xl transition-all shadow-lg shadow-emerald-200 flex flex-col items-center justify-center gap-1">
+            <button id="export-btn" class="bg-emerald-600 active:scale-95 text-white font-bold py-5 px-4 rounded-2xl transition-all shadow-lg shadow-emerald-200 flex flex-col items-center justify-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span>Excel</span>
+                <span>Descargar</span>
             </button>
         </div>
 
-        <!-- Tabla de Resultados -->
+        <!-- Registros -->
         <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
             <div class="p-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                 <h2 class="font-bold text-slate-700">Registros</h2>
-                <button id="clear-btn" class="bg-red-50 text-red-500 px-3 py-1 rounded-full text-xs font-bold">Limpiar</button>
+                <button id="clear-btn" class="text-red-500 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">Limpiar</button>
             </div>
             <div class="max-h-64 overflow-y-auto">
                 <table class="w-full text-left text-sm" id="scans-table">
@@ -133,14 +144,15 @@
         let html5QrCode;
         let scans = [];
         let isFlashOn = false;
+        let videoTrack = null;
 
         const startBtn = document.getElementById('start-btn');
         const btnText = document.getElementById('btn-text');
         const zoomRange = document.getElementById('zoom-range');
+        const zoomValDisp = document.getElementById('zoom-value');
         const torchBtn = document.getElementById('torch-btn');
         const cameraControls = document.getElementById('camera-controls');
         const statusText = document.getElementById('result-status');
-        const torchContainer = document.getElementById('torch-container');
 
         function initScanner() {
             html5QrCode = new Html5Qrcode("reader");
@@ -148,7 +160,7 @@
             const config = { 
                 fps: 25, 
                 qrbox: (vw, vh) => {
-                    const size = Math.floor(Math.min(vw, vh) * 0.7);
+                    const size = Math.floor(Math.min(vw, vh) * 0.75);
                     return { width: size, height: size };
                 },
                 aspectRatio: 1.0,
@@ -160,18 +172,18 @@
             };
 
             startBtn.addEventListener('click', () => {
-                if (btnText.innerText === "Iniciar") {
+                if (btnText.innerText === "Encender") {
                     html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
                     .then(() => {
-                        btnText.innerText = "Parar";
+                        btnText.innerText = "Apagar";
                         startBtn.classList.replace('bg-indigo-600', 'bg-slate-700');
                         statusText.innerText = "Escaneando...";
                         cameraControls.classList.remove('hidden');
                         
-                        // Esperar un momento a que el track de video esté activo para detectar capacidades
-                        setTimeout(setupAdvancedControls, 1000);
+                        // Pequeño delay para asegurar que el stream está listo
+                        setTimeout(bindAdvancedControls, 800);
                     })
-                    .catch(err => alert("Error de cámara: " + err));
+                    .catch(err => alert("Error al iniciar: " + err));
                 } else {
                     stopCamera();
                 }
@@ -180,61 +192,71 @@
 
         function stopCamera() {
             html5QrCode.stop().then(() => {
-                btnText.innerText = "Iniciar";
+                btnText.innerText = "Encender";
                 startBtn.classList.replace('bg-slate-700', 'bg-indigo-600');
                 statusText.innerText = "Cámara apagada";
                 cameraControls.classList.add('hidden');
-                torchContainer.classList.add('hidden');
                 isFlashOn = false;
                 torchBtn.classList.remove('torch-active');
+                torchBtn.innerText = "ACTIVAR LINTERNA";
             });
         }
 
-        async function setupAdvancedControls() {
+        async function bindAdvancedControls() {
             try {
-                // Obtenemos el track de video directamente
-                const videoTrack = html5QrCode.getRunningTrack();
+                videoTrack = html5QrCode.getRunningTrack();
                 const capabilities = videoTrack.getCapabilities();
                 
-                console.log("Capacidades detectadas:", capabilities);
-
-                // Soporte para ZOOM
+                // Configurar Zoom si existe
                 if (capabilities.zoom) {
-                    document.getElementById('zoom-container').classList.remove('hidden');
                     zoomRange.min = capabilities.zoom.min;
                     zoomRange.max = capabilities.zoom.max;
                     zoomRange.step = capabilities.zoom.step;
                     
-                    zoomRange.oninput = (e) => {
-                        videoTrack.applyConstraints({ advanced: [{ zoom: e.target.value }] });
+                    const updateZoom = (val) => {
+                        videoTrack.applyConstraints({ advanced: [{ zoom: val }] });
+                        zoomValDisp.innerText = parseFloat(val).toFixed(1) + "x";
+                    };
+
+                    zoomRange.oninput = (e) => updateZoom(e.target.value);
+                    
+                    document.getElementById('zoom-in').onclick = () => {
+                        let newVal = Math.min(parseFloat(zoomRange.value) + 0.5, capabilities.zoom.max);
+                        zoomRange.value = newVal;
+                        updateZoom(newVal);
+                    };
+                    
+                    document.getElementById('zoom-out').onclick = () => {
+                        let newVal = Math.max(parseFloat(zoomRange.value) - 0.5, capabilities.zoom.min);
+                        zoomRange.value = newVal;
+                        updateZoom(newVal);
                     };
                 }
 
-                // Soporte para LINTERNA (Torch)
-                // Verificamos 'torch' en las capacidades del track
-                if (capabilities.torch) {
-                    torchContainer.classList.remove('hidden');
-                    torchBtn.onclick = async () => {
-                        isFlashOn = !isFlashOn;
-                        try {
-                            await videoTrack.applyConstraints({
-                                advanced: [{ torch: isFlashOn }]
-                            });
-                            
-                            if (isFlashOn) {
-                                torchBtn.classList.add('torch-active');
-                                torchBtn.innerText = "Luz: ENCENDIDA";
-                            } else {
-                                torchBtn.classList.remove('torch-active');
-                                torchBtn.innerText = "LINTERNA";
-                            }
-                        } catch (e) {
-                            console.error("No se pudo alternar la linterna:", e);
+                // Configurar Linterna
+                torchBtn.onclick = async () => {
+                    if (!videoTrack) return;
+                    isFlashOn = !isFlashOn;
+                    try {
+                        await videoTrack.applyConstraints({
+                            advanced: [{ torch: isFlashOn }]
+                        });
+                        
+                        if (isFlashOn) {
+                            torchBtn.classList.add('torch-active');
+                            torchBtn.innerText = "LINTERNA ENCENDIDA";
+                        } else {
+                            torchBtn.classList.remove('torch-active');
+                            torchBtn.innerText = "ACTIVAR LINTERNA";
                         }
-                    };
-                }
+                    } catch (e) {
+                        alert("Tu celular o navegador no permiten encender la linterna desde aquí.");
+                        isFlashOn = false;
+                    }
+                };
+
             } catch (e) {
-                console.warn("Controles avanzados no disponibles en este navegador/dispositivo:", e);
+                console.warn("Controles manuales limitados.");
             }
         }
 
@@ -242,7 +264,7 @@
             if (scans.length > 0 && scans[0].content === decodedText) return;
 
             document.getElementById('beep').play();
-            if (window.navigator.vibrate) window.navigator.vibrate(80);
+            if (window.navigator.vibrate) window.navigator.vibrate(100);
 
             const now = new Date();
             scans.unshift({ 
@@ -277,7 +299,7 @@
             if (scans.length === 0) return alert("Nada que exportar.");
             const ws = XLSX.utils.json_to_sheet(scans);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Escaneos");
+            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
             XLSX.writeFile(wb, `Reporte_QR_${Date.now()}.xlsx`);
         };
 
