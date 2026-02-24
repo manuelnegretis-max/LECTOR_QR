@@ -2,12 +2,12 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
     
-    <title>QR Smart Scanner Pro</title>
+    <title>QR Smart Scanner Pro - Samsung A73 Fix</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -15,310 +15,235 @@
     
     <style>
         :root { --primary: #6366f1; }
-        body {
-            background-color: #000;
-            color: #fff;
-            overflow: hidden; /* Evita scroll elástico en móviles */
-            height: 100vh;
-            width: 100vw;
-            position: fixed;
-        }
+        body { background-color: #000; color: #fff; overflow-x: hidden; font-family: sans-serif; }
         #reader {
             width: 100%;
-            height: 100% !important;
+            height: 65vh !important;
             border: none !important;
+            background: #000;
         }
         #reader__scan_region video {
             object-fit: cover !important;
+            /* Mejora el contraste para sensores de alta resolución */
+            filter: contrast(1.2) brightness(1.1);
         }
-        #reader__dashboard, #reader__status_span { display: none !important; }
-        
-        .scan-overlay {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            z-index: 10;
-        }
+        #reader__dashboard { display: none !important; }
+
         .scanner-focus-box {
             position: absolute;
-            top: 40%; /* Un poco más arriba para dejar espacio al panel inferior */
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 240px;
-            height: 240px;
+            width: 240px; height: 240px;
             border: 2px solid rgba(255,255,255,0.3);
             border-radius: 40px;
             box-shadow: 0 0 0 4000px rgba(0,0,0,0.6);
+            z-index: 5;
+            pointer-events: none;
         }
         .scanner-focus-box::after {
             content: '';
             position: absolute;
-            inset: -4px;
+            inset: -2px;
             border: 4px solid var(--primary);
             border-radius: 40px;
-            animation: pulse 2s infinite ease-in-out;
+            animation: pulse 2s infinite;
         }
         @keyframes pulse {
-            0%, 100% { opacity: 0.3; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.05); }
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.03); }
         }
         .custom-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            height: 28px; width: 28px;
+            height: 32px; width: 32px;
             background: #fff;
             border-radius: 50%;
-            border: 3px solid var(--primary);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
     </style>
 </head>
-<body class="font-sans antialiased select-none">
+<body class="antialiased">
 
-    <div class="relative h-screen flex flex-col">
-        <!-- Visor de Cámara -->
-        <div class="relative h-[65vh] w-full bg-black overflow-hidden">
+    <div class="relative min-h-screen flex flex-col">
+        <!-- Visor -->
+        <div class="relative flex-1 overflow-hidden bg-black">
             <div id="reader"></div>
-            <div class="scan-overlay">
-                <div class="scanner-focus-box"></div>
-            </div>
+            <div class="scanner-focus-box"></div>
             
-            <!-- Pill de Estado -->
-            <div id="status-pill" class="absolute top-12 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-xl px-6 py-2 rounded-full border border-white/10 z-50 transition-all">
-                <span class="text-[10px] font-black tracking-[0.2em] uppercase text-indigo-300" id="status-text">LISTO PARA ESCANEAR</span>
+            <div id="status-pill" class="absolute top-10 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-xl px-6 py-2 rounded-full border border-white/20 z-50">
+                <span id="status-text" class="text-[10px] font-black tracking-widest uppercase text-indigo-300">Esperando Cámara</span>
             </div>
         </div>
 
-        <!-- Panel de Control Inferior -->
-        <div class="flex-1 bg-zinc-950 rounded-t-[2.5rem] p-6 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] z-20 -mt-12 flex flex-col border-t border-white/5">
+        <!-- Panel Inferior -->
+        <div class="bg-zinc-950 rounded-t-[3rem] p-6 pb-10 shadow-2xl z-20 -mt-12 border-t border-white/5">
             
-            <!-- Zoom UI -->
-            <div id="zoom-ctrl" class="opacity-30 pointer-events-none mb-6 transition-opacity duration-500">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Digital Zoom</span>
-                    <span id="zoom-display" class="text-indigo-400 font-black text-xs bg-indigo-500/10 px-2 py-0.5 rounded">1.0x</span>
+            <!-- Control Zoom -->
+            <div id="zoom-container" class="hidden mb-6 bg-zinc-900/50 p-4 rounded-3xl border border-white/5">
+                <div class="flex justify-between items-center mb-4 px-2">
+                    <span class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Zoom de Precisión</span>
+                    <span id="zoom-val" class="text-sm font-black text-indigo-400">1.0x</span>
                 </div>
                 <div class="flex items-center gap-4">
-                    <button id="zoom-down" class="w-10 h-10 rounded-2xl bg-zinc-900 flex items-center justify-center text-xl border border-white/5 active:bg-zinc-800">－</button>
-                    <input id="zoom-slider" type="range" step="0.1" class="flex-1 h-1.5 bg-zinc-900 rounded-lg appearance-none custom-slider">
-                    <button id="zoom-up" class="w-10 h-10 rounded-2xl bg-zinc-900 flex items-center justify-center text-xl border border-white/5 active:bg-zinc-800">＋</button>
+                    <button id="z-minus" class="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center text-xl active:scale-90 transition-all">－</button>
+                    <input id="z-slider" type="range" step="0.1" class="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none custom-slider">
+                    <button id="z-plus" class="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center text-xl active:scale-90 transition-all">＋</button>
                 </div>
             </div>
 
-            <!-- Botones de Acción -->
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <button id="main-btn" class="bg-indigo-600 h-16 rounded-2xl font-black text-sm shadow-lg shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-3">
-                    <div id="btn-icon" class="w-2 h-2 bg-white rounded-full"></div>
-                    <span id="btn-text">INICIAR CÁMARA</span>
+            <!-- Botones -->
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <button id="btn-toggle" class="bg-indigo-600 h-20 rounded-[2rem] font-black text-lg active:scale-95 transition-all flex items-center justify-center">
+                    <span id="txt-toggle">INICIAR</span>
                 </button>
-                <button id="dl-btn" class="bg-zinc-900 h-16 rounded-2xl font-black text-sm active:scale-95 transition-all text-zinc-300 border border-white/5 flex items-center justify-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    EXCEL
+                <button id="btn-xlsx" class="bg-zinc-800 h-20 rounded-[2rem] font-black text-lg active:scale-95 transition-all text-white border border-white/5 uppercase">
+                    Excel
                 </button>
             </div>
 
-            <!-- Lista de Escaneos -->
-            <div class="flex-1 flex flex-col min-h-0">
-                <div class="flex justify-between items-center mb-3">
-                    <h3 class="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">Registros en Memoria</h3>
-                    <button id="clear-all" class="text-[10px] text-zinc-500 font-bold uppercase hover:text-red-400 p-2">Borrar Historial</button>
+            <!-- Log -->
+            <div class="space-y-4">
+                <div class="flex justify-between items-center px-2">
+                    <h3 class="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Registros</h3>
+                    <button id="btn-clear" class="text-[10px] text-zinc-700 font-bold uppercase">Limpiar</button>
                 </div>
-                <div id="log-container" class="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
-                    <div id="empty-msg" class="text-center py-10 text-zinc-800 flex flex-col items-center gap-2">
-                        <svg class="w-8 h-8 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                        <span class="text-xs italic">No hay capturas recientes</span>
-                    </div>
-                    <div id="log-list" class="space-y-2"></div>
+                <div id="list" class="max-h-32 overflow-y-auto space-y-2 pr-1">
+                    <p id="no-data" class="text-center py-6 text-zinc-800 font-bold text-xs uppercase tracking-widest">Sin capturas</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modales y UI Feedback -->
-    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-white text-black px-6 py-3 rounded-full font-bold text-xs shadow-2xl opacity-0 translate-y-10 transition-all z-[100] pointer-events-none"></div>
-
-    <audio id="beep-sound" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3" preload="auto"></audio>
+    <audio id="beep" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"></audio>
 
     <script>
-        let scanner = null;
-        let scanHistory = JSON.parse(localStorage.getItem('scanHistory') || '[]');
-        let activeTrack = null;
-        let isScanning = false;
+        let html5Qr = null;
+        let logs = [];
+        let track = null;
 
-        function showToast(msg, duration = 2000) {
-            const t = document.getElementById('toast');
-            t.innerText = msg;
-            t.classList.remove('opacity-0', 'translate-y-10');
-            t.classList.add('opacity-100', 'translate-y-0');
-            setTimeout(() => {
-                t.classList.add('opacity-0', 'translate-y-10');
-                t.classList.remove('opacity-100', 'translate-y-0');
-            }, duration);
-        }
-
-        async function initScanner() {
-            scanner = new Html5Qrcode("reader");
-            updateUI();
-        }
-
-        async function toggleScanner() {
-            const btnText = document.getElementById('btn-text');
-            const mainBtn = document.getElementById('main-btn');
-            const zoomCtrl = document.getElementById('zoom-ctrl');
-
-            if (!isScanning) {
-                try {
-                    const config = { 
-                        fps: 24, 
-                        qrbox: { width: 250, height: 250 },
-                        aspectRatio: 1.0,
-                        videoConstraints: {
-                            facingMode: "environment",
-                            focusMode: "continuous"
-                        }
-                    };
-
-                    await scanner.start({ facingMode: "environment" }, config, onScanSuccess);
-                    
-                    isScanning = true;
-                    btnText.innerText = "DETENER";
-                    mainBtn.classList.replace('bg-indigo-600', 'bg-zinc-800');
-                    document.getElementById('btn-icon').classList.add('animate-pulse', 'bg-red-500');
-                    zoomCtrl.classList.remove('opacity-30', 'pointer-events-none');
-                    
-                    setupCameraFeatures();
-                    showToast("Cámara activada");
-                } catch (err) {
-                    showToast("Error de cámara: " + err);
+        async function start() {
+            html5Qr = new Html5Qrcode("reader");
+            const config = { 
+                fps: 25, 
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0,
+                videoConstraints: {
+                    facingMode: "environment",
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
                 }
-            } else {
-                await scanner.stop();
-                isScanning = false;
-                btnText.innerText = "INICIAR CÁMARA";
-                mainBtn.classList.replace('bg-zinc-800', 'bg-indigo-600');
-                document.getElementById('btn-icon').classList.remove('animate-pulse', 'bg-red-500');
-                zoomCtrl.classList.add('opacity-30', 'pointer-events-none');
-                showToast("Cámara apagada");
-            }
-        }
-
-        function setupCameraFeatures() {
-            activeTrack = scanner.getRunningTrack();
-            const caps = activeTrack.getCapabilities();
-            const slider = document.getElementById('zoom-slider');
-            const display = document.getElementById('zoom-display');
-
-            if (caps.zoom) {
-                slider.min = caps.zoom.min;
-                slider.max = caps.zoom.max;
-                slider.step = caps.zoom.step || 0.1;
-                slider.value = 1.0;
-
-                const updateZoom = (val) => {
-                    activeTrack.applyConstraints({ advanced: [{ zoom: val }] });
-                    display.innerText = parseFloat(val).toFixed(1) + "x";
-                };
-
-                slider.oninput = (e) => updateZoom(e.target.value);
-                document.getElementById('zoom-up').onclick = () => {
-                    let v = Math.min(parseFloat(slider.value) + 0.5, caps.zoom.max);
-                    slider.value = v; updateZoom(v);
-                };
-                document.getElementById('zoom-down').onclick = () => {
-                    let v = Math.max(parseFloat(slider.value) - 0.5, caps.zoom.min);
-                    slider.value = v; updateZoom(v);
-                };
-            }
-        }
-
-        function onScanSuccess(decodedText) {
-            // Protección contra spam de lecturas (misma lectura en menos de 2 seg)
-            if (scanHistory.length > 0 && scanHistory[0].data === decodedText) {
-                const now = Date.now();
-                if (now - (scanHistory[0].rawTime || 0) < 2000) return;
-            }
-
-            try {
-                document.getElementById('beep-sound').play();
-            } catch(e) {}
-            
-            if (navigator.vibrate) navigator.vibrate(80);
-
-            const record = {
-                data: decodedText,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                rawTime: Date.now()
             };
 
-            scanHistory.unshift(record);
-            localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
-            updateUI();
-            
-            // UI Feedback
-            const pill = document.getElementById('status-pill');
-            const statusText = document.getElementById('status-text');
-            pill.style.backgroundColor = "rgba(16, 185, 129, 0.8)";
-            statusText.innerText = "¡CÓDIGO CAPTURADO!";
-            setTimeout(() => {
-                pill.style.backgroundColor = "";
-                statusText.innerText = "LISTO PARA ESCANEAR";
-            }, 1000);
+            document.getElementById('btn-toggle').onclick = async function() {
+                const btnText = document.getElementById('txt-toggle');
+                if (btnText.innerText === "INICIAR") {
+                    try {
+                        await html5Qr.start({ facingMode: "environment" }, config, onScan);
+                        btnText.innerText = "PARAR";
+                        this.classList.replace('bg-indigo-600', 'bg-zinc-800');
+                        document.getElementById('status-text').innerText = "Cámara Activa";
+                        
+                        // Esperar a que el video esté estable antes de configurar el zoom
+                        setTimeout(setupCameraFeatures, 1200);
+                    } catch (e) {
+                        alert("Error al acceder a cámara. Asegúrate de usar HTTPS.");
+                        console.error(e);
+                    }
+                } else {
+                    location.reload();
+                }
+            };
         }
 
-        function updateUI() {
-            const list = document.getElementById('log-list');
-            const msg = document.getElementById('empty-msg');
-            msg.style.display = scanHistory.length ? 'none' : 'flex';
+        async function setupCameraFeatures() {
+            try {
+                // Validación de track para evitar TypeError
+                track = html5Qr.getRunningTrack();
+                if (!track) return;
+
+                const caps = track.getCapabilities ? track.getCapabilities() : {};
+                if (caps.zoom) {
+                    const container = document.getElementById('zoom-container');
+                    const slider = document.getElementById('z-slider');
+                    const valText = document.getElementById('zoom-val');
+                    
+                    container.classList.remove('hidden');
+                    slider.min = caps.zoom.min;
+                    slider.max = caps.zoom.max;
+                    slider.step = caps.zoom.step;
+                    slider.value = 1.0;
+
+                    const apply = (v) => {
+                        track.applyConstraints({ advanced: [{ zoom: v }] }).catch(console.warn);
+                        valText.innerText = parseFloat(v).toFixed(1) + "x";
+                    };
+
+                    slider.oninput = (e) => apply(e.target.value);
+                    document.getElementById('z-plus').onclick = () => {
+                        let n = Math.min(parseFloat(slider.value) + 0.5, caps.zoom.max);
+                        slider.value = n; apply(n);
+                    };
+                    document.getElementById('z-minus').onclick = () => {
+                        let n = Math.max(parseFloat(slider.value) - 0.5, caps.zoom.min);
+                        slider.value = n; apply(n);
+                    };
+
+                    // Auto-zoom preventivo para papel bond (alejar un poco ayuda al enfoque)
+                    setTimeout(() => { if(logs.length === 0) apply(1.4); slider.value = 1.4; }, 3000);
+                }
+            } catch (err) {
+                console.warn("Hardware de zoom no detectado o bloqueado.");
+            }
+        }
+
+        function onScan(text) {
+            if (logs.length > 0 && logs[0].data === text) return;
+
+            document.getElementById('beep').play();
+            if (navigator.vibrate) navigator.vibrate(80);
+
+            logs.unshift({
+                data: text,
+                time: new Date().toLocaleTimeString([], { hour12: false })
+            });
+
+            const status = document.getElementById('status-text');
+            status.innerText = "¡CAPTURADO!";
+            status.classList.replace('text-indigo-300', 'text-emerald-400');
             
-            list.innerHTML = scanHistory.map((s, idx) => `
-                <div class="bg-zinc-900/80 p-4 rounded-2xl flex justify-between items-center border border-white/5 shadow-sm">
-                    <div class="flex flex-col">
-                        <span class="text-[9px] font-black text-indigo-500 uppercase tracking-tighter">${s.time}</span>
-                        <span class="text-sm font-medium text-zinc-100 truncate max-w-[180px]">${s.data}</span>
-                    </div>
-                    <button onclick="removeIndex(${idx})" class="p-2 text-zinc-600 active:text-red-500">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
+            render();
+            
+            setTimeout(() => {
+                status.innerText = "Cámara Activa";
+                status.classList.replace('text-emerald-400', 'text-indigo-300');
+            }, 1200);
+        }
+
+        function render() {
+            const container = document.getElementById('list');
+            const noData = document.getElementById('no-data');
+            if (logs.length) noData.style.display = 'none';
+            
+            container.innerHTML = logs.map(l => `
+                <div class="bg-zinc-900 p-4 rounded-2xl flex justify-between items-center border border-white/5">
+                    <span class="text-[10px] font-black text-indigo-500 font-mono">${l.time}</span>
+                    <span class="text-xs font-bold text-zinc-200 truncate ml-4 flex-1 text-right">${l.data}</span>
                 </div>
             `).join('');
         }
 
-        window.removeIndex = (idx) => {
-            scanHistory.splice(idx, 1);
-            localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
-            updateUI();
-        };
-
-        document.getElementById('main-btn').onclick = toggleScanner;
-
-        document.getElementById('dl-btn').onclick = () => {
-            if (!scanHistory.length) return showToast("No hay datos");
-            
-            // Limpiar datos para exportar solo lo relevante
-            const exportData = scanHistory.map(h => ({ "Contenido": h.data, "Hora": h.time }));
-            
-            const ws = XLSX.utils.json_to_sheet(exportData);
+        document.getElementById('btn-xlsx').onclick = () => {
+            if (!logs.length) return;
+            const ws = XLSX.utils.json_to_sheet(logs);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Escaneos");
-            XLSX.writeFile(wb, `Reporte_QR_${new Date().getTime()}.xlsx`);
-            showToast("Exportando Excel...");
+            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+            XLSX.writeFile(wb, `Registros_${Date.now()}.xlsx`);
         };
 
-        document.getElementById('clear-all').onclick = () => {
-            if (scanHistory.length === 0) return;
-            // Usamos un pequeño delay para que la interacción táctil se sienta natural
-            setTimeout(() => {
-                if (confirm("¿Limpiar todos los registros?")) {
-                    scanHistory = [];
-                    localStorage.removeItem('scanHistory');
-                    updateUI();
-                    showToast("Historial borrado");
-                }
-            }, 10);
+        document.getElementById('btn-clear').onclick = () => {
+            if (confirm("¿Limpiar?")) { logs = []; render(); document.getElementById('no-data').style.display = 'block'; }
         };
 
-        window.onload = initScanner;
+        window.onload = start;
     </script>
 </body>
 </html>
