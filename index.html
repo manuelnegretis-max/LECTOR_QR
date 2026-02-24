@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
     
-    <title>QR Smart Scanner Pro - Samsung A73 Fix</title>
+    <title>QR Smart Scanner Pro - Samsung A73 Ultra Fix</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -24,7 +24,6 @@
         }
         #reader__scan_region video {
             object-fit: cover !important;
-            /* Mejora el contraste para sensores de alta resolución */
             filter: contrast(1.2) brightness(1.1);
         }
         #reader__dashboard { display: none !important; }
@@ -34,7 +33,7 @@
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             width: 240px; height: 240px;
-            border: 2px solid rgba(255,255,255,0.3);
+            border: 2px solid rgba(255,255,255,0.2);
             border-radius: 40px;
             box-shadow: 0 0 0 4000px rgba(0,0,0,0.6);
             z-index: 5;
@@ -49,8 +48,8 @@
             animation: pulse 2s infinite;
         }
         @keyframes pulse {
-            0%, 100% { opacity: 0.4; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.03); }
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.03); }
         }
         .custom-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
@@ -58,6 +57,7 @@
             background: #fff;
             border-radius: 50%;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            border: 2px solid var(--primary);
         }
     </style>
 </head>
@@ -70,7 +70,7 @@
             <div class="scanner-focus-box"></div>
             
             <div id="status-pill" class="absolute top-10 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-xl px-6 py-2 rounded-full border border-white/20 z-50">
-                <span id="status-text" class="text-[10px] font-black tracking-widest uppercase text-indigo-300">Esperando Cámara</span>
+                <span id="status-text" class="text-[10px] font-black tracking-widest uppercase text-indigo-300">Iniciando Sistema...</span>
             </div>
         </div>
 
@@ -80,34 +80,34 @@
             <!-- Control Zoom -->
             <div id="zoom-container" class="hidden mb-6 bg-zinc-900/50 p-4 rounded-3xl border border-white/5">
                 <div class="flex justify-between items-center mb-4 px-2">
-                    <span class="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Zoom de Precisión</span>
+                    <span class="text-[10px] font-black text-zinc-500 uppercase tracking-widest text-white">Zoom Digital</span>
                     <span id="zoom-val" class="text-sm font-black text-indigo-400">1.0x</span>
                 </div>
                 <div class="flex items-center gap-4">
-                    <button id="z-minus" class="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center text-xl active:scale-90 transition-all">－</button>
+                    <button id="z-minus" class="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center text-xl active:scale-90">－</button>
                     <input id="z-slider" type="range" step="0.1" class="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none custom-slider">
-                    <button id="z-plus" class="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center text-xl active:scale-90 transition-all">＋</button>
+                    <button id="z-plus" class="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center text-xl active:scale-90">＋</button>
                 </div>
             </div>
 
             <!-- Botones -->
             <div class="grid grid-cols-2 gap-4 mb-8">
                 <button id="btn-toggle" class="bg-indigo-600 h-20 rounded-[2rem] font-black text-lg active:scale-95 transition-all flex items-center justify-center">
-                    <span id="txt-toggle">INICIAR</span>
+                    <span id="txt-toggle">ENCENDER</span>
                 </button>
-                <button id="btn-xlsx" class="bg-zinc-800 h-20 rounded-[2rem] font-black text-lg active:scale-95 transition-all text-white border border-white/5 uppercase">
-                    Excel
+                <button id="btn-xlsx" class="bg-zinc-800 h-20 rounded-[2rem] font-black text-lg active:scale-95 text-white border border-white/5 uppercase">
+                    Descargar
                 </button>
             </div>
 
             <!-- Log -->
             <div class="space-y-4">
                 <div class="flex justify-between items-center px-2">
-                    <h3 class="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Registros</h3>
-                    <button id="btn-clear" class="text-[10px] text-zinc-700 font-bold uppercase">Limpiar</button>
+                    <h3 class="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Historial</h3>
+                    <button id="btn-clear" class="text-[10px] text-zinc-700 font-bold uppercase">Borrar</button>
                 </div>
                 <div id="list" class="max-h-32 overflow-y-auto space-y-2 pr-1">
-                    <p id="no-data" class="text-center py-6 text-zinc-800 font-bold text-xs uppercase tracking-widest">Sin capturas</p>
+                    <p id="no-data" class="text-center py-6 text-zinc-800 font-bold text-xs uppercase">Sin capturas</p>
                 </div>
             </div>
         </div>
@@ -119,12 +119,13 @@
         let html5Qr = null;
         let logs = [];
         let track = null;
+        let retryCount = 0;
 
-        async function start() {
+        async function startApp() {
             html5Qr = new Html5Qrcode("reader");
             const config = { 
-                fps: 25, 
-                qrbox: { width: 250, height: 250 },
+                fps: 30, 
+                qrbox: { width: 260, height: 260 },
                 aspectRatio: 1.0,
                 videoConstraints: {
                     facingMode: "environment",
@@ -135,18 +136,18 @@
 
             document.getElementById('btn-toggle').onclick = async function() {
                 const btnText = document.getElementById('txt-toggle');
-                if (btnText.innerText === "INICIAR") {
+                if (btnText.innerText === "ENCENDER") {
                     try {
                         await html5Qr.start({ facingMode: "environment" }, config, onScan);
-                        btnText.innerText = "PARAR";
+                        btnText.innerText = "APAGAR";
                         this.classList.replace('bg-indigo-600', 'bg-zinc-800');
-                        document.getElementById('status-text').innerText = "Cámara Activa";
+                        document.getElementById('status-text').innerText = "Cámara Lista";
                         
-                        // Esperar a que el video esté estable antes de configurar el zoom
-                        setTimeout(setupCameraFeatures, 1200);
+                        // Iniciar detección persistente de hardware
+                        retryCount = 0;
+                        attemptSetupCamera();
                     } catch (e) {
-                        alert("Error al acceder a cámara. Asegúrate de usar HTTPS.");
-                        console.error(e);
+                        alert("Error: Verifica que uses HTTPS y que no haya otra app usando la cámara.");
                     }
                 } else {
                     location.reload();
@@ -154,13 +155,25 @@
             };
         }
 
-        async function setupCameraFeatures() {
+        // Función de reintento para evitar el TypeError en dispositivos Samsung
+        function attemptSetupCamera() {
             try {
-                // Validación de track para evitar TypeError
-                track = html5Qr.getRunningTrack();
-                if (!track) return;
+                if (!html5Qr || !html5Qr.isScanning) return;
 
+                track = html5Qr.getRunningTrack();
+                
+                // Si el track aún no está disponible, reintentar en 500ms
+                if (!track) {
+                    if (retryCount < 10) { // Máximo 5 segundos de espera
+                        retryCount++;
+                        setTimeout(attemptSetupCamera, 500);
+                    }
+                    return;
+                }
+
+                // Si llegamos aquí, el track existe. Configuramos funciones.
                 const caps = track.getCapabilities ? track.getCapabilities() : {};
+                
                 if (caps.zoom) {
                     const container = document.getElementById('zoom-container');
                     const slider = document.getElementById('z-slider');
@@ -172,26 +185,32 @@
                     slider.step = caps.zoom.step;
                     slider.value = 1.0;
 
-                    const apply = (v) => {
-                        track.applyConstraints({ advanced: [{ zoom: v }] }).catch(console.warn);
+                    const applyZoom = (v) => {
+                        if (!track) return;
+                        track.applyConstraints({ advanced: [{ zoom: parseFloat(v) }] }).catch(() => {});
                         valText.innerText = parseFloat(v).toFixed(1) + "x";
                     };
 
-                    slider.oninput = (e) => apply(e.target.value);
+                    slider.oninput = (e) => applyZoom(e.target.value);
                     document.getElementById('z-plus').onclick = () => {
-                        let n = Math.min(parseFloat(slider.value) + 0.5, caps.zoom.max);
-                        slider.value = n; apply(n);
+                        let n = Math.min(parseFloat(slider.value) + 0.4, caps.zoom.max);
+                        slider.value = n; applyZoom(n);
                     };
                     document.getElementById('z-minus').onclick = () => {
-                        let n = Math.max(parseFloat(slider.value) - 0.5, caps.zoom.min);
-                        slider.value = n; apply(n);
+                        let n = Math.max(parseFloat(slider.value) - 0.4, caps.zoom.min);
+                        slider.value = n; applyZoom(n);
                     };
 
-                    // Auto-zoom preventivo para papel bond (alejar un poco ayuda al enfoque)
-                    setTimeout(() => { if(logs.length === 0) apply(1.4); slider.value = 1.4; }, 3000);
+                    // Auto-zoom preventivo para papel (ayuda al enfoque del sensor Samsung)
+                    setTimeout(() => { 
+                        if(logs.length === 0 && slider.value == 1.0) {
+                            slider.value = 1.5; 
+                            applyZoom(1.5); 
+                        }
+                    }, 2500);
                 }
             } catch (err) {
-                console.warn("Hardware de zoom no detectado o bloqueado.");
+                console.warn("Fallo en configuración avanzada:", err);
             }
         }
 
@@ -199,7 +218,7 @@
             if (logs.length > 0 && logs[0].data === text) return;
 
             document.getElementById('beep').play();
-            if (navigator.vibrate) navigator.vibrate(80);
+            if (navigator.vibrate) navigator.vibrate(100);
 
             logs.unshift({
                 data: text,
@@ -207,26 +226,26 @@
             });
 
             const status = document.getElementById('status-text');
-            status.innerText = "¡CAPTURADO!";
-            status.classList.replace('text-indigo-300', 'text-emerald-400');
+            status.innerText = "CAPTURA OK";
+            status.style.color = "#10b981";
             
-            render();
+            renderList();
             
             setTimeout(() => {
-                status.innerText = "Cámara Activa";
-                status.classList.replace('text-emerald-400', 'text-indigo-300');
-            }, 1200);
+                status.innerText = "Cámara Lista";
+                status.style.color = "";
+            }, 1000);
         }
 
-        function render() {
+        function renderList() {
             const container = document.getElementById('list');
             const noData = document.getElementById('no-data');
             if (logs.length) noData.style.display = 'none';
             
             container.innerHTML = logs.map(l => `
-                <div class="bg-zinc-900 p-4 rounded-2xl flex justify-between items-center border border-white/5">
-                    <span class="text-[10px] font-black text-indigo-500 font-mono">${l.time}</span>
-                    <span class="text-xs font-bold text-zinc-200 truncate ml-4 flex-1 text-right">${l.data}</span>
+                <div class="bg-zinc-900 p-4 rounded-2xl flex justify-between items-center border border-white/5 animate-in slide-in-from-top duration-300">
+                    <span class="text-[10px] font-black text-indigo-400 font-mono">${l.time}</span>
+                    <span class="text-xs font-bold text-zinc-100 truncate ml-4 flex-1 text-right">${l.data}</span>
                 </div>
             `).join('');
         }
@@ -235,15 +254,15 @@
             if (!logs.length) return;
             const ws = XLSX.utils.json_to_sheet(logs);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
-            XLSX.writeFile(wb, `Registros_${Date.now()}.xlsx`);
+            XLSX.utils.book_append_sheet(wb, ws, "Escaneos");
+            XLSX.writeFile(wb, `Reporte_${Date.now()}.xlsx`);
         };
 
         document.getElementById('btn-clear').onclick = () => {
-            if (confirm("¿Limpiar?")) { logs = []; render(); document.getElementById('no-data').style.display = 'block'; }
+            if (confirm("¿Borrar historial?")) { logs = []; renderList(); document.getElementById('no-data').style.display = 'block'; }
         };
 
-        window.onload = start;
+        window.onload = startApp;
     </script>
 </body>
 </html>
