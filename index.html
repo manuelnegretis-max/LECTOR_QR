@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#4f46e5">
     
-    <title>QR Scanner Pro + Zoom</title>
+    <title>QR Scanner Pro + Zoom + Flash</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -51,18 +51,29 @@
         <!-- Encabezado -->
         <header class="text-center my-6">
             <h1 class="text-3xl font-extrabold text-indigo-600 tracking-tight">QR Scanner Pro</h1>
-            <p class="text-sm text-slate-500 font-medium">Versión Alta Precisión</p>
+            <p class="text-sm text-slate-500 font-medium">Edición Pro (Flash & Zoom)</p>
         </header>
 
         <!-- Sección del Escáner -->
         <div class="bg-white p-4 rounded-3xl shadow-xl mb-6 scanner-container border border-slate-100">
             <div id="reader"></div>
             
-            <!-- Controles de Cámara (Zoom y Flash) -->
+            <!-- Controles Avanzados -->
             <div id="camera-controls" class="hidden mt-4 space-y-4">
-                <div class="flex items-center gap-3">
-                    <span class="text-xs font-bold text-slate-400">ZOOM</span>
+                <!-- Zoom Control -->
+                <div id="zoom-container" class="hidden flex items-center gap-3 bg-slate-50 p-2 rounded-xl">
+                    <span class="text-[10px] font-black text-slate-400">ZOOM</span>
                     <input id="zoom-range" type="range" step="0.1" min="1" max="5" value="1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+                
+                <!-- Flash Button -->
+                <div id="torch-container" class="hidden flex justify-center">
+                    <button id="torch-btn" class="flex items-center gap-2 bg-amber-100 text-amber-700 px-6 py-2 rounded-full font-bold text-xs transition-all active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        LINTERNA
+                    </button>
                 </div>
             </div>
 
@@ -115,55 +126,49 @@
     <script>
         let html5QrCode;
         let scans = [];
+        let isFlashOn = false;
+
         const startBtn = document.getElementById('start-btn');
         const btnText = document.getElementById('btn-text');
         const zoomRange = document.getElementById('zoom-range');
+        const torchBtn = document.getElementById('torch-btn');
         const cameraControls = document.getElementById('camera-controls');
         const statusText = document.getElementById('result-status');
 
         function initScanner() {
             html5QrCode = new Html5Qrcode("reader");
             
-            // CONFIGURACIÓN DE ALTA CALIDAD
             const config = { 
-                fps: 20, // Más frames para capturar códigos rápidos
-                qrbox: (viewfinderWidth, viewfinderHeight) => {
-                    // Cuadro de escaneo dinámico (60% del ancho)
-                    const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-                    const qrboxSize = Math.floor(minEdgeSize * 0.6);
-                    return { width: qrboxSize, height: qrboxSize };
+                fps: 25, 
+                qrbox: (vw, vh) => {
+                    const size = Math.floor(Math.min(vw, vh) * 0.7);
+                    return { width: size, height: size };
                 },
                 aspectRatio: 1.0,
-                // Forzar resolución más alta si el dispositivo lo permite
                 videoConstraints: {
                     facingMode: "environment",
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    width: { ideal: 1920 }, // Intentar Full HD para máxima nitidez
+                    height: { ideal: 1080 }
                 }
             };
 
             startBtn.addEventListener('click', () => {
                 if (btnText.innerText === "Iniciar") {
-                    html5QrCode.start(
-                        { facingMode: "environment" }, 
-                        config, 
-                        onScanSuccess
-                    ).then(() => {
+                    html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+                    .then(() => {
                         btnText.innerText = "Parar";
                         startBtn.classList.replace('bg-indigo-600', 'bg-slate-700');
                         statusText.innerText = "Escaneando...";
-                        
-                        // Intentar habilitar controles de zoom
                         setupAdvancedControls();
-                    }).catch(err => {
-                        alert("Error de cámara: " + err);
-                    });
+                    })
+                    .catch(err => alert("Error de cámara: " + err));
                 } else {
                     html5QrCode.stop().then(() => {
                         btnText.innerText = "Iniciar";
                         startBtn.classList.replace('bg-slate-700', 'bg-indigo-600');
                         statusText.innerText = "Cámara apagada";
                         cameraControls.classList.add('hidden');
+                        isFlashOn = false;
                     });
                 }
             });
@@ -174,26 +179,38 @@
                 const capabilities = html5QrCode.getRunningTrackCapabilities();
                 const settings = html5QrCode.getRunningTrackSettings();
                 
-                // Configurar Zoom si está disponible
+                cameraControls.classList.remove('hidden');
+
+                // Soporte para ZOOM
                 if (capabilities.zoom) {
-                    cameraControls.classList.remove('hidden');
+                    document.getElementById('zoom-container').classList.remove('hidden');
                     zoomRange.min = capabilities.zoom.min;
                     zoomRange.max = capabilities.zoom.max;
                     zoomRange.step = capabilities.zoom.step;
                     zoomRange.value = settings.zoom;
-                    
-                    zoomRange.oninput = async (e) => {
+                    zoomRange.oninput = (e) => {
+                        html5QrCode.applyVideoConstraints({ advanced: [{ zoom: e.target.value }] });
+                    };
+                }
+
+                // Soporte para LINTERNA (Flash)
+                if (capabilities.torch) {
+                    document.getElementById('torch-container').classList.remove('hidden');
+                    torchBtn.onclick = async () => {
+                        isFlashOn = !isFlashOn;
                         try {
                             await html5QrCode.applyVideoConstraints({
-                                advanced: [{ zoom: e.target.value }]
+                                advanced: [{ torch: isFlashOn }]
                             });
-                        } catch (err) {
-                            console.error("Error aplicando zoom", err);
+                            torchBtn.classList.toggle('bg-amber-400', isFlashOn);
+                            torchBtn.classList.toggle('text-white', isFlashOn);
+                        } catch (e) {
+                            console.error("Error con linterna", e);
                         }
                     };
                 }
             } catch (e) {
-                console.log("El dispositivo no soporta controles avanzados de cámara.");
+                console.log("Controles avanzados no disponibles");
             }
         }
 
@@ -222,7 +239,6 @@
         function renderTable() {
             const scansList = document.getElementById('scans-list');
             const emptyState = document.getElementById('empty-state');
-            
             if (scans.length > 0) emptyState.classList.add('hidden');
             
             scansList.innerHTML = scans.map(scan => `
